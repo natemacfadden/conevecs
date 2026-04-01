@@ -5,7 +5,6 @@
 # --------------
 from libc.stdint cimport int32_t
 from libc.stdlib cimport malloc, free
-from libc.string cimport memcpy
 import numpy as np
 
 # declare the external C function
@@ -13,12 +12,12 @@ import numpy as np
 cdef extern from "box_enum.h":
     int _box_enum_c(
         int32_t * out,
-        int * N_out,
+        long * N_out,
         int dim,
         int B,
-        int * linmat,
-        int linmin,
-        int numhyps,
+        int * H,
+        int rhs,
+        int N_hyps,
         long max_N_out,
         long max_N_iter
     )
@@ -26,24 +25,26 @@ cdef extern from "box_enum.h":
 # Python-exposed wrapper
 # ----------------------
 def box_enum(B: int,
-                int[:, ::1] linmat,
-                int linmin,
+                int[:, ::1] H,
+                int rhs,
                 long max_N_out,
                 long max_N_iter = -1):
     """
-    Enumerate lattice points x obeying ``linmat @ x >= linmin`` and
-    ``|x_i| <= B`` using Kannan's algorithm. Columns of ``linmat`` are
-    internally sorted by L1 norm (strictest constraints first) before calling
-    the C kernel, then the output is un-sorted before returning.
+    Enumerate lattice points ``vec`` obeying ``H @ vec >= rhs`` and
+    ``|vec_i| <= B`` using Kannan's algorithm.
+
+    Columns of ``H`` are internally sorted by L1 norm (strictest constraints
+    first) before calling the C kernel, then the output is un-sorted before
+    returning.
 
     Parameters
     ----------
     B : int
-        Box half-width: each component satisfies ``|x_i| <= B``.
-    linmat : int[:, ::1] of shape (numhyps, dim)
+        Box half-width: each component satisfies ``|vec_i| <= B``.
+    H : int[:, ::1] of shape (N_hyps, dim)
         Hyperplane constraint matrix. Each row defines one inequality
-        ``linmat[i] @ x >= linmin``.
-    linmin : int
+        ``H[i] @ vec >= rhs``.
+    rhs : int
         Minimum value each hyperplane constraint must satisfy. Inclusive.
     max_N_out : long
         Maximum number of output vectors allowed.
@@ -56,15 +57,15 @@ def box_enum(B: int,
         Lattice points satisfying all constraints.
     status : int
         Status code:
-            0: success
-           -6: problem dimension too high (currently >256)
-           -5: no vectors found
-           -2: exceeded max_N_out outputs
+            0  : success
+           -1  : dim > 256 (unsupported)
+           -2  : exceeded max_N_out outputs
+           -3  : exceeded max_N_iter iterations
     """
     # read some inputs
-    cdef int dim     = linmat.shape[1]
-    cdef int numhyps = linmat.shape[0]
-    cdef int N_out = 0
+    cdef int dim    = H.shape[1]
+    cdef int N_hyps = H.shape[0]
+    cdef long N_out = 0
     cdef int status
 
     # allocate output arrays
@@ -72,16 +73,16 @@ def box_enum(B: int,
     if c_out == NULL:
         raise MemoryError("Failed to allocate c_out")
 
-    # ensure linmat is sorted
-    linmat_np   = np.asarray(linmat)
-    col_l1_norm = np.sum(np.abs(linmat_np), axis=0)
-    sort_inds   = np.argsort(col_l1_norm)
-    undo_sort_np= np.argsort(sort_inds).astype(np.int32)
-    linmat_np   = linmat_np[:, sort_inds]
-    linmat_np   = np.ascontiguousarray(linmat_np, dtype=np.int32)
+    # ensure H is sorted to have strict constraints coming first
+    H_np = np.asarray(H)
+    col_l1_norm  = np.sum(np.abs(H_np), axis=0)
+    sort_inds    = np.argsort(col_l1_norm)
+    undo_sort_np = np.argsort(sort_inds).astype(np.int32)
+    H_np = H_np[:, sort_inds]
+    H_np = np.ascontiguousarray(H_np, dtype=np.int32)
 
-    cdef int[:, ::1] linmat_view = linmat_np
-    cdef int *linmat_ptr = &linmat_view[0, 0]
+    cdef int[:, ::1] H_view = H_np
+    cdef int *H_ptr = &H_view[0, 0]
 
     cdef int32_t[::1] undo_sort_view = undo_sort_np
 
@@ -94,9 +95,9 @@ def box_enum(B: int,
         &N_out,
         dim,
         B,
-        linmat_ptr,
-        linmin,
-        numhyps,
+        H_ptr,
+        rhs,
+        N_hyps,
         max_N_out,
         max_N_iter
     );
@@ -105,11 +106,6 @@ def box_enum(B: int,
         free(c_out)
         return np.empty((0, dim), dtype=np.int32), status
 
-    # copy results
-    out_sorted = np.empty((N_out, dim), dtype=np.int32)
-    cdef int32_t[:, ::1] out_sorted_view = out_sorted
-    memcpy(&out_sorted_view[0, 0], c_out, N_out * dim * sizeof(int32_t))
-
     # unsort
     out = np.empty((N_out, dim), dtype=np.int32)
     cdef int32_t[:, ::1] out_view = out
@@ -117,7 +113,7 @@ def box_enum(B: int,
 
     for i in range(N_out):
         for j in range(dim):
-            out_view[i, j] = out_sorted_view[i, undo_sort_view[j]]
+            out_view[i, j] = c_out[i*dim + undo_sort_view[j]]
 
     # free C memory
     free(c_out)

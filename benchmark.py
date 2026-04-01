@@ -182,7 +182,7 @@ for B in range(1, 30+1):
 
     if skip_box is None:
         t0 = time.perf_counter()
-        out, status = box_enum(B=B, linmat=H, linmin=1, max_N_out=max_N_out, max_N_iter=max_N_iter)
+        out, status = box_enum(B=B, H=H, rhs=1, max_N_out=max_N_out, max_N_iter=max_N_iter)
         elapsed = time.perf_counter() - t0
         t_box = _fmt(elapsed)
         n_str = f"{out.shape[0]:>8}"

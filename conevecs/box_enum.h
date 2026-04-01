@@ -6,43 +6,53 @@
 #include <stdint.h>
 
 /*
-**Description:**
-Enumerate lattice points x obeying linmat@x >= linmin and |x_i| <= B using
-Kannan's algorithm.
+Enumerate lattice points ``vec`` obeying ``H @ vec >= rhs`` and ``|vec_i| <= B``
+using Kannan's algorithm.
 
-VERY preferable that you the columns of linmat so stricter components come
-first.
+Prefer to sort the columns of ``H`` so that stricter constraints come first.
+(This is automatically done in the .pyx file). See `set_bounds` for the logic.
 
-**Arguments:**
-// output objects
-- `out`:        A container for the lattice points vec.
-- `N_out`:      An integer we write to, indicating the number of outputs.
-// box definition
-- `dim`:        The dimension of the problem.
-- `B`:          The bounds |x_i| <= B
-// cone definition cuts
-- `linmat`:     The matrix defining the cone.
-- `linmin`:     The closest permitted distance to a hyperplane.
-- `numhyps`:    The number of hyperplane constraints.
-// misc specs
-- `max_N_out`:  The maximum number of output allowed.
-- `max_N_iter`: The maximum number of iterations allowed.
+Parameters
+----------
+out : int32_t*
+    Output buffer. Must be pre-allocated to hold at least max_N_out * dim
+    elements. Lattice points are written in row-major order.
+N_out : long*
+    Written with the number of lattice points found.
+dim : int
+    Dimension of the problem.
+B : int
+    Box half-width: each component satisfies |vec_i| <= B.
+H : int*
+    Constraint matrix of shape (N_hyps, dim), in row-major order. Each row
+    defines one inequality ``H[i] @ vec >= rhs``.
+rhs : int
+    Right-hand side of all hyperplane constraints.
+N_hyps : int
+    Number of hyperplane constraints (rows of H).
+max_N_out : long
+    Maximum number of output lattice points. Enumeration stops early if
+    reached.
+max_N_iter : long
+    Maximum number of Kannan iterations. Enumeration stops early if reached.
 
-**Returns:**
-A status code according to following list:
-    0: success
-    -6: problem dimension too high (currently >256)
-    -5: no vectors
-    -2: exceed max_N_out outputs
+Returns
+-------
+int
+    Status code:
+        0  : success
+       -1  : dim > 256 (unsupported)
+       -2  : exceeded max_N_out outputs
+       -3  : exceeded max_N_iter iterations
 */
 int _box_enum_c(
     int32_t * restrict out,
-    int * restrict N_out,
+    long * restrict N_out,
     int dim,
     int B,
-    int * restrict linmat,
-    int linmin,
-    int numhyps,
+    int * restrict H,
+    int rhs,
+    int N_hyps,
     long max_N_out,
     long max_N_iter
 );
@@ -52,7 +62,8 @@ int _box_enum_c(
 // ==============
 #ifdef BOX_ENUM_IMPLEMENTATION
 
-#include "box_enum.h"
+#define MAX_SUPPORTED_DIM 256
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,42 +88,78 @@ static inline int set_bounds(
     int sp,
     int i,
     int dim,
-    int numhyps,
+    int N_hyps,
     int B,
-    int * restrict linmat,
-    int linmin,
+    int * restrict H,
+    int rhs,
     int32_t * restrict stack_partial_sum,
     int * restrict abssum,
     int32_t * restrict stack_val_min,
     int32_t * restrict stack_val_len)
 {
     /*
-    **Description:**
-    Defines the bounds to iterate vec[i] over in the next Kannan iteration.
+    Compute the iteration bounds for component i at stack depth sp, writing
+    results into stack_val_min[sp] and stack_val_len[sp].
 
-    Most of the work is in writing to `stack_val_min` and `stack_val_len`.
+    Parameters
+    ----------
+    sp : int
+        Current stack depth.
+    i : int
+        Component index being bounded.
+    dim, N_hyps, B, H, rhs : (see _box_enum_c)
+    stack_partial_sum : int32_t*
+        Partial dot products ``H @ vec`` for components already fixed.
+    abssum : int*
+        Precomputed prefix sums of |H[:,k]| for each constraint.
+    stack_val_min : int32_t*
+        Written with the minimum value to try for vec[i].
+    stack_val_len : int32_t*
+        Written with the number of candidates to try for vec[i].
 
-    **Arguments:**
-    - `sp`:            A pointer to the current stack element.
-    ...
-    - `stack_val_min`: The minimum value to try for vec[i].
-    - `stack_val_len`: The number of candidates to try for vec[i].
-    ...
-
-    **Returns:**
-    The number of candidates to try, `stack_val_len[sp]`.
+    Returns
+    -------
+    int
+        Number of candidates (stack_val_len[sp]).
     */
     int lo = -B;
     int hi =  B;
 
     // cut by each hyperplane
-    for (int j=0; j<numhyps; ++j) {
-        int h = linmat[j*dim + i];
+    for (int j=0; j<N_hyps; ++j) {
+        /*
+        Imposes constraint dot(H[j,:], vec) >= rhs.
+        
+        Split:
+            rhs <= dot(H[j,:i],vec[:i])
+                 + H[j,i]*vec[i]
+                 + dot(H[j,i+1:],vec[i+1:])
+        the third term is stack_partial_sum[j], so
+            rhs <= dot(H[j,:i],vec[:i])
+                 + H[j,i]*vec[i]
+                 + stack_partial_sum[j].
+        The maximum value possible of dot(H[j,:i],vec[:i]) is
+            dot(H[j,:i],vec[:i]) <= B*sum(abs(H[j,:i])).
+        Thus
+            rhs - stack_partial_sum[j] - B*sum(abs(H[j,:i])) <=  H[j,i]*vec[i].
+
+        The term B * sum(abs(H[j,:i])) is the 'slack'. It is where any looseness
+        in our bounds can arise from. Ideally, then, you'd want
+        sum(abs(H[j,:i])) to be minimized to have as tight bounds as possible.
+
+        We obviously can't sort each row/constraint individually since that'd
+        muddle the components of vec. What we can do is minimize the net slack,
+        sum(abs(H[:,:i])). This is done by ordering *columns* in increasing
+        L1-norm, which is the rationale behind the column sorting.
+        */
+        int h = H[j*dim + i];
         if (h == 0){
             continue;
         }
 
-        int numer = linmin - stack_partial_sum[sp*numhyps + j] - B*abssum[j*(dim+1) + i];
+        int numer = rhs
+                  - stack_partial_sum[sp*N_hyps + j]
+                  - B*abssum[j*(dim+1) + i];
 
         if (h>0){
             lo = max_int(lo, (int)ceil(1.0*numer/h));
@@ -135,91 +182,53 @@ static inline int set_bounds(
     return num;
 }
 
-// custom Kannan code for p-vector generation
+// custom Kannan code for lattice vector generation
 int _box_enum_c(
     int32_t * restrict out,
-    int * restrict N_out,
+    long * restrict N_out,
     int dim,
     int B,
-    int * restrict linmat,
-    int linmin,
-    int numhyps,
+    int * restrict H,
+    int rhs,
+    int N_hyps,
     long max_N_out,
     long max_N_iter)
 {
-    /*
-    **Description:**
-    Enumerate lattice points x obeying linmat@x >= linmin and |x_i| <= B using
-    Kannan's algorithm.
+    /* (see header doc) */
+    // check dimensions are reasonable
+    // -------------------------------
+    if (dim > MAX_SUPPORTED_DIM) {
+        *N_out = 0;
+        return -1;
+    }
 
-    VERY preferable that you the columns of linmat so stricter components come
-    first.
-
-    **Arguments:**
-    // output objects
-    - `out`:        A container for the lattice points vec.
-    - `N_out`:      An integer we write to, indicating the number of outputs.
-    // box definition
-    - `dim`:        The dimension of the problem.
-    - `B`:          The bounds |x_i| <= B.
-    // cone definition cuts
-    - `linmat`:     The matrix defining the cone.
-    - `linmin`:     The closest permitted distance to a hyperplane.
-    - `numhyps`:    The number of hyperplane constraints.
-    // misc specs
-    - `max_N_out`:  The maximum number of output allowed.
-    - `max_N_iter`: The maximum number of iterations allowed.
-
-    **Returns:**
-    A status code according to following list:
-        0: success
-        -6: problem dimension too high (currently >256)
-        -5: no vectors
-        -2: exceed max_N_out outputs
-        -3: exceed max_N_iter iterations
-    */
     // define variables
     // ----------------
     int status = 0;
 
     // define arrays
-    #define MAX_DIM dim
-    #define MAX_DEPTH (MAX_DIM + 1)
+    int32_t vec[dim];
 
-    int32_t vec[MAX_DIM];
+    int32_t stack_i[dim+1];
+    int32_t stack_pos[dim+1];
 
-    int32_t stack_i[MAX_DEPTH];
-    int32_t stack_pos[MAX_DEPTH];
+    int32_t stack_val_len[dim+1];
+    int32_t stack_val_min[dim+1];
 
-    int32_t stack_val_len[MAX_DEPTH];
-    int32_t stack_val_min[MAX_DEPTH];
-
-    int32_t stack_partial_sum[numhyps*MAX_DEPTH];
+    int32_t stack_partial_sum[N_hyps*(dim+1)];
     memset(stack_partial_sum, 0, sizeof(stack_partial_sum));
 
     // output/stack pointer
-    int op = 0;
+    long op = 0;
     int sp = 0;
 
     // misc helpers
-    int abssum[numhyps*(dim+1)];
-
-    // check dimensions are reasonable
-    // -------------------------------
-    #define MAX_SUPPORTED_DIM 256
-    if (dim > MAX_SUPPORTED_DIM) {
-        status = -6;
-        goto end;
-    }
-
-    // define variables
-    // ----------------
-    // compute helper variable
-    for (int j=0; j<numhyps; ++j) {
+    int abssum[N_hyps*(dim+1)];
+    for (int j=0; j<N_hyps; ++j) {
         abssum[j*(dim+1) + 0] = 0;
 
         for (int k=0; k<dim; ++k) {
-            abssum[j*(dim+1) + k+1] = abssum[j*(dim+1) + k] + abs(linmat[j*dim + k]);
+            abssum[j*(dim+1) + k+1] = abssum[j*(dim+1) + k] + abs(H[j*dim + k]);
         }
     }
 
@@ -232,17 +241,15 @@ int _box_enum_c(
             sp,
             dim-1,
             dim,
-            numhyps,
+            N_hyps,
             B,
-            linmat,
-            linmin,
+            H,
+            rhs,
             stack_partial_sum,
             abssum,
             stack_val_min,
             stack_val_len);
     if (k == 0) {
-        printf("ERROR NO VECTORS");
-        status = -5;
         goto end;
     }
 
@@ -251,9 +258,9 @@ int _box_enum_c(
     int i;
     int pos;
 
-    int Niter = 0;
+    long Niter = 0;
     while (sp >= 0) {
-        // quit it too many iterations
+        // quit if too many iterations
         Niter += 1;
         if (Niter >= max_N_iter) {
             DEBUG_LOG("QUITTING DUE TO TOO MANY ITERATIONS\n");
@@ -266,7 +273,8 @@ int _box_enum_c(
         pos  = stack_pos[sp];
 
         // debug print statement
-        DEBUG_LOG("Setting component-%d for op=%d, sp=%d, pos=%d\n", i, op, sp, pos);
+        DEBUG_LOG("Setting component-%d for op=%ld, sp=%d, pos=%d\n",
+                  i, op, sp, pos);
 
         // save if node is complete
         // if i==-1, then we have fully written vec
@@ -276,17 +284,12 @@ int _box_enum_c(
                 goto end;
             }
 
-            int32_t *dst = &out[op * dim];
+            memcpy(&out[op * dim], vec, dim * sizeof(int32_t));
 
-            #pragma unroll
-            for (int j = 0; j < dim; ++j)
-                dst[j] = vec[j];
-            //memcpy(&out[op * dim], vec, dim * sizeof(int32_t));
-            
-            op ++;
+            op++;
 
             // kill node
-            sp --;
+            sp--;
             continue;
         }
 
@@ -296,11 +299,12 @@ int _box_enum_c(
             continue;
         }
 
-        // set vec[sp]
+        // set vec[i]
         int veci = stack_val_min[sp] + pos;
         vec[i] = veci;
 
-        DEBUG_LOG("Set     component-%d for op=%d, sp=%d, pos=%d to %d\n", i, op, sp, pos, veci);
+        DEBUG_LOG("Set     component-%d for op=%ld, sp=%d, pos=%d to %d\n",
+                  i, op, sp, pos, veci);
 
         // advance pos for next iteration
         stack_pos[sp] += 1;
@@ -311,8 +315,9 @@ int _box_enum_c(
         stack_pos[sp]     = 0;
 
         // update the partial sums
-        for (int j = 0; j<numhyps; ++j) {
-            stack_partial_sum[sp*numhyps+j] = stack_partial_sum[(sp-1)*numhyps + j] + linmat[j*dim + i]*veci;
+        for (int j = 0; j<N_hyps; ++j) {
+            int32_t prev = stack_partial_sum[(sp-1)*N_hyps + j];
+            stack_partial_sum[sp*N_hyps+j] = prev + H[j*dim + i]*veci;
         }
 
         if (i > 0) {
@@ -320,10 +325,10 @@ int _box_enum_c(
                 sp,
                 i-1,
                 dim,
-                numhyps,
+                N_hyps,
                 B,
-                linmat,
-                linmin,
+                H,
+                rhs,
                 stack_partial_sum,
                 abssum,
                 stack_val_min,
@@ -337,6 +342,8 @@ int _box_enum_c(
         *N_out = op;
         return status;
 }
+
+#undef MAX_SUPPORTED_DIM
 
 #endif // BOX_ENUM_IMPLEMENTATION
 
