@@ -53,3 +53,28 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Cython build artifacts
+*.c
+*.cpp
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+*.egg
+
+# macOS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# C build artifacts
+test_box_enum
