@@ -17,7 +17,12 @@ conevecs/
 ├── conevecs/
 │   ├── box_enum.h               # STB-style library for the Kannan enumeration
 |   ├── box_enum.pyx             # Cython wrapper
-|   └── c_benchmarks/            # test script for directly testing the C-code
+|   └── conevecs.py              # a wrapper for box_enum, increasing box size until N points are found
+├── tests/
+│   ├── test_box_enum.py         # generic tests
+│   ├── test_manwe.py            # tests relating to 'Manwe' https://arxiv.org/abs/2406.13751
+│   ├── benchmark_box_enum.py    # simple B-dilation benchmark for 'Manwe'
+|   └── c/                       # simple C-kernel tests (no Python interface)
 ├── pyproject.toml
 └── setup.py
 ```
