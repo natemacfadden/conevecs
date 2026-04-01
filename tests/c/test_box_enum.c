@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>
+#include <limits.h>
 #include <time.h>
 
 #define BOX_ENUM_IMPLEMENTATION
@@ -11,7 +12,7 @@ int main(int argc, char *argv[])
 {
     // Manwe:
     int dim = 7;
-    int numhyps = 73;
+    int N_hyps = 73;
     int H[] = {0,  -5, 0,  3,  3,  0,  -1,
                0,  0,  0,  0,  -1, -2, -3,
                0,  0,  0,  -1, 0,  -3, -5,
@@ -89,17 +90,21 @@ int main(int argc, char *argv[])
     long max_N_iter = 1000000000000;
 
     // read box size B
-    int B = 1;
-
-    if (argc > 1) {
-        char *end;
-        long val = strtol(argv[1], &end, 10);
-        if (*end != '\0' || val <= 0) {
-            fprintf(stderr, "Invalid B\n");
-            return 1;
-        }
-        B = (int)val;
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s B\n", argv[0]);
+        fprintf(stderr, "  Enumerate lattice points in [-B,B]^%d satisfying H @ x >= 1\n", dim);
+        fprintf(stderr, "  Example: %s 3\n", argv[0]);
+        return 1;
     }
+
+    char *str_end;
+    errno = 0;
+    long val = strtol(argv[1], &str_end, 10);
+    if (errno == ERANGE || *str_end != '\0' || val <= 0 || val > INT_MAX) {
+        fprintf(stderr, "Invalid B: must be a positive integer\n");
+        return 1;
+    }
+    int B = (int)val;
 
     // initialize output array
     int32_t *out = malloc((size_t)max_N_out * dim * sizeof(int32_t));
@@ -109,26 +114,26 @@ int main(int argc, char *argv[])
     }
 
     // do the enumeration
-    int N_out = 0;
+    long N_out = 0;
 
-    clock_t start = clock();
-    int rc = _conevecs_kernel_c(
+    clock_t t_start = clock();
+    int rc = _box_enum_c(
         out,
         &N_out,
         dim,
         B,
         H,
         1,
-        numhyps,
+        N_hyps,
         max_N_out,
         max_N_iter);
-    clock_t end = clock();
-    float eval_time = (float)(end - start) / CLOCKS_PER_SEC;
-    
+    clock_t t_end = clock();
+    double eval_time = (double)(t_end - t_start) / CLOCKS_PER_SEC;
+
     if (rc != 0) {
         fprintf(stderr, "enumerate_box_c failed (%d)\n", rc);
     } else {
-        printf("Generated %d vectors in %fs\n", N_out, eval_time);
+        printf("Generated %ld vectors in %fs\n", N_out, eval_time);
     }
 
     // free memory
