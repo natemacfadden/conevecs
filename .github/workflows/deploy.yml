@@ -15,10 +15,10 @@ jobs:
     name: Make SDist
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build SDist
         run: pipx run build --sdist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ci-sdist
           path: dist/*.tar.gz
@@ -32,7 +32,7 @@ jobs:
         # Windows excluded: box_enum.h uses C99 VLAs which MSVC does not support
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up QEMU for Linux aarch64
         if: matrix.os == 'ubuntu-latest'
         uses: docker/setup-qemu-action@v3
@@ -44,7 +44,7 @@ jobs:
           CIBW_BUILD: cp39-* cp310-* cp311-* cp312-* cp313-*
           CIBW_ARCHS_LINUX: x86_64 aarch64
           CIBW_ARCHS_MACOS: x86_64 arm64
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ci-wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
@@ -61,7 +61,7 @@ jobs:
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: ci-*
           path: dist
