@@ -2,6 +2,11 @@ Enumerates lattice points $\\{x\in\mathbb{Z}^{\text{dim}}: Hx\geq\text{rhs}\\}$ 
 
 The main use case is for finding lattice points in convex cones, for which $H$ are the inwards-facing hyperplanes. If $\text{rhs}=0$, this will find lattice points in the cone, including its boundary. If $\text{rhs}=1$, then this only finds lattice points in the strict interior of the cone.
 
+## Limitations
+
+- Maximum dimension: 256 (returns an error if `dim > 256`)
+- Windows is not supported: the C kernel uses C99 variable-length arrays, which MSVC does not support
+
 ## Installation
 
 ```

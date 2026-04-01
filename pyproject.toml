@@ -12,7 +12,17 @@ version = "0.0.1"
 description = "A software package for enumerating lattice points in convex cones"
 authors = [{ name = "Nate MacFadden for the Liam McAllister Group" }]
 readme = "README.md"
-license = {text = "GPL-3.0-or-later"}
+license = "GPL-3.0-or-later"
+keywords = ["lattice", "enumeration", "convex cone", "Kannan", "geometry of numbers"]
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Cython",
+    "Programming Language :: C",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
 dependencies = [
     "numpy",
 ]
