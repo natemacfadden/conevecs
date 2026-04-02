@@ -19,6 +19,10 @@ out : int32_t*
     elements. Lattice points are written in row-major order.
 N_out : long*
     Written with the number of lattice points found.
+N_nodes : long*
+    Written with the number of nodes visited in the search tree (including
+    the root). For N_hyps=0 (no hyperplane constraints) this equals
+    ((2B+1)^(n+1)-1)/(2B).
 dim : int
     Dimension of the problem.
 B : int
@@ -33,8 +37,9 @@ N_hyps : int
 max_N_out : long
     Maximum number of output lattice points. Enumeration stops early if
     reached.
-max_N_iter : long
-    Maximum number of Kannan iterations. Enumeration stops early if reached.
+max_N_nodes : long
+    Maximum number of search tree nodes to visit. Enumeration stops early
+    if reached.
 
 Returns
 -------
@@ -43,18 +48,19 @@ int
         0  : success
        -1  : dim > 256 (unsupported)
        -2  : exceeded max_N_out outputs
-       -3  : exceeded max_N_iter iterations
+       -3  : exceeded max_N_nodes
 */
 int _box_enum_c(
     int32_t * restrict out,
     long * restrict N_out,
+    long * restrict N_nodes,
     int dim,
     int B,
     int * restrict H,
     int rhs,
     int N_hyps,
     long max_N_out,
-    long max_N_iter
+    long max_N_nodes
 );
 
 
@@ -92,7 +98,7 @@ static inline int set_bounds(
     int B,
     int * restrict H,
     int rhs,
-    int32_t * restrict stack_partial_sum,
+    int64_t * restrict stack_partial_sum,
     int * restrict abssum,
     int32_t * restrict stack_val_min,
     int32_t * restrict stack_val_len)
@@ -157,14 +163,17 @@ static inline int set_bounds(
             continue;
         }
 
-        int numer = rhs
-                  - stack_partial_sum[sp*N_hyps + j]
-                  - B*abssum[j*(dim+1) + i];
+        // Use int64 to avoid overflow: partial_sum ~ H*B, abssum*B can both exceed 2^31
+        int64_t numer = (int64_t)rhs
+                      - stack_partial_sum[sp*N_hyps + j]
+                      - (int64_t)B * (int64_t)abssum[j*(dim+1) + i];
 
         if (h>0){
-            lo = max_int(lo, (int)ceil(1.0*numer/h));
+            double v = ceil((double)numer/h);
+            lo = max_int(lo, v > (double)hi ? hi + 1 : (int)v);
         } else {
-            hi = min_int(hi, (int)floor(1.0*numer/h));
+            double v = floor((double)numer/h);
+            hi = min_int(hi, v < (double)lo ? lo - 1 : (int)v);
         }
     }
 
@@ -186,13 +195,14 @@ static inline int set_bounds(
 int _box_enum_c(
     int32_t * restrict out,
     long * restrict N_out,
+    long * restrict N_nodes,
     int dim,
     int B,
     int * restrict H,
     int rhs,
     int N_hyps,
     long max_N_out,
-    long max_N_iter)
+    long max_N_nodes)
 {
     /* (see header doc) */
     // check dimensions are reasonable
@@ -215,7 +225,7 @@ int _box_enum_c(
     int32_t stack_val_len[dim+1];
     int32_t stack_val_min[dim+1];
 
-    int32_t stack_partial_sum[N_hyps*(dim+1)];
+    int64_t stack_partial_sum[N_hyps*(dim+1)];
     memset(stack_partial_sum, 0, sizeof(stack_partial_sum));
 
     // output/stack pointer
@@ -258,15 +268,8 @@ int _box_enum_c(
     int i;
     int pos;
 
-    long Niter = 0;
+    *N_nodes = 1;  // count the root
     while (sp >= 0) {
-        // quit if too many iterations
-        Niter += 1;
-        if (Niter >= max_N_iter) {
-            DEBUG_LOG("QUITTING DUE TO TOO MANY ITERATIONS\n");
-            status = -3;
-            goto end;
-        }
 
         // read from the stack
         i    = stack_i[sp];
@@ -311,13 +314,19 @@ int _box_enum_c(
 
         // passes cuts -> push next depth :)
         sp += 1;
+        (*N_nodes)++;
+        if (*N_nodes > max_N_nodes) {
+            DEBUG_LOG("QUITTING DUE TO TOO MANY NODES/ITERATIONS\n");
+            status = -3;
+            goto end;
+        }
         stack_i[sp]       = i-1;
         stack_pos[sp]     = 0;
 
         // update the partial sums
         for (int j = 0; j<N_hyps; ++j) {
-            int32_t prev = stack_partial_sum[(sp-1)*N_hyps + j];
-            stack_partial_sum[sp*N_hyps+j] = prev + H[j*dim + i]*veci;
+            int64_t prev = stack_partial_sum[(sp-1)*N_hyps + j];
+            stack_partial_sum[sp*N_hyps+j] = prev + (int64_t)H[j*dim + i] * (int64_t)veci;
         }
 
         if (i > 0) {

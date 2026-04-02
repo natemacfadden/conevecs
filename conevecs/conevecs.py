@@ -36,6 +36,7 @@ def enum_lattice_points(
     min_N_pts: int,
     primitive: bool = False,
     max_B: int = 10_000,
+    min_efficiency: float = 1e-6,
     verbosity: int = 0) -> np.ndarray:
     """
     Generate (optionally primitive) lattice points in
@@ -55,8 +56,15 @@ def enum_lattice_points(
     max_B : int, optional
         Maximum box size to search. If reached without finding min_N_pts
         points, returns however many were found. Defaults to 10_000.
+    min_efficiency : float, optional
+        Minimum permitted efficiency r = N_nodes_dense / N_nodes_seen, where
+        N_nodes_dense = sum_{k=0}^{dim} min_N_pts^{k/dim} is the node count
+        for N_hyps=0 (no hyperplane constraints). r=1 tolerates only a
+        fully dense box; r=0 imposes no limit. Defaults to 1e-6.
     verbosity : int, optional
-        The verbosity level. Higher is more verbose. Defaults to 0.
+        The verbosity level. >= 1 prints per-iteration diagnostics
+        (cone_width, exploration_fraction, efficiency). >= 2 also prints
+        attempt-level progress messages. Defaults to 0 (silent).
 
     Returns
     -------
@@ -67,55 +75,84 @@ def enum_lattice_points(
     if min_N_pts <= 0:
         raise ValueError(f"min_N_pts must be > 0, got {min_N_pts}.")
 
-    # box_enum has a safety max number of iterations, outputs
-    # set both to a large number
-    max_N_out  = max(10_000, 10*min_N_pts)
-    max_N_iter = max(1_000_000, 1_000_000*min_N_pts)
+    max_N_out = max(10_000, 10*min_N_pts)
 
     H = np.asarray(H, dtype=np.int32)
+    dim = H.shape[1]
+
+    # Smallest B such that an unconstrained box (N_hyps=0) could contain
+    # min_N_pts points: (2B+1)^dim >= min_N_pts => B >= (min_N_pts^{1/dim}-1)/2
+    B = max(1, int((min_N_pts**(1.0/dim) - 1) / 2))
+
+    # Node budget: minimum nodes to find min_N_pts points with N_hyps=0
+    # (no hyperplane constraints), N_nodes_dense = sum_{k=0}^{dim} min_N_pts^{k/dim}.
+    N_nodes_dense = sum(min_N_pts**(k/dim) for k in range(dim + 1))
+    if min_efficiency <= 0:
+        max_N_nodes = -1  # no limit; box_enum will use its own default
+    else:
+        max_N_nodes = max(1_000_000, int(np.floor(N_nodes_dense / min_efficiency)))
 
     # get the lattice points
+    _B_INT_MAX = 2**31 - 1  # box_enum takes C int
     Bs_fit   = []
     Npts_fit = []
 
-    i     = -1
-    B     = 1
-    Nlast = 0
+    i        = -1
+    Nlast    = 0
+    stop_why = None
+    best_pts = np.empty((0, dim), dtype=np.int32)
     while True:
         i += 1
-        if verbosity >= 1:
+        if verbosity >= 2:
             print(f"Attempt #{i}: computing lattice pts in box |x_i| <= {B}...",
                   flush=True)
 
-        # the actual work
-        pts, status = box_enum(
-            B=B,
+        # the actual work (box_enum takes C int; cap B at INT_MAX)
+        pts, status, N_nodes_seen = box_enum(
+            B=min(B, _B_INT_MAX),
             H=H,
             rhs=rhs,
             max_N_out=max_N_out,
-            max_N_iter=max_N_iter
+            max_N_nodes=max_N_nodes,
         )
+        if verbosity >= 1:
+            N_nodes_B = ((2*B + 1)**(dim + 1) - 1) // (2*B)
+            cone_width = len(pts) / (2*B + 1)**dim
+            exploration_fraction = N_nodes_seen / N_nodes_B
+            efficiency = N_nodes_dense / N_nodes_seen if N_nodes_seen > 0 else 0.0
+            print(f"B={B}: N_out={len(pts)}, "
+                  f"cone_width={cone_width:.3e}, "
+                  f"exploration_fraction={exploration_fraction:.3e}, "
+                  f"efficiency={efficiency:.3e}",
+                  flush=True)
         if status == -1:
             raise ValueError(f"dim={H.shape[1]} > 256 (unsupported by box_enum)")
         elif status == -2:
             warnings.warn(f"exceeded max_N_out={max_N_out} outputs")
         elif status == -3:
-            warnings.warn(f"exceeded max_N_iter={max_N_iter} iterations")
+            warnings.warn(
+                f"exceeded max_N_nodes={max_N_nodes} "
+                f"(= floor(N_nodes_dense / min_efficiency), N_nodes = N_iterations + 1)"
+            )
 
         # remove points with nontrivial GCDs
         if primitive and (len(pts) > 0):
             gcds = np.gcd.reduce(pts, axis=1)
             pts  = pts[gcds == 1]
         N = len(pts)
+        if N > len(best_pts):
+            best_pts = pts
 
         # check if done
         if N >= min_N_pts:
             break
-        if B >= max_B:
-            if verbosity >= 1:
-                print(f"Reached max_B={max_B} with {N} points. Stopping.")
+        if B >= _B_INT_MAX:
+            stop_why = f"B={B} reached INT_MAX={_B_INT_MAX} (box_enum C int limit)"
             break
-        if verbosity >= 1:
+        if B >= max_B:
+            stop_why = f"B={B} reached max_B={max_B}"
+            break
+        if verbosity >= 2:
             print(f"Attempt #{i}: found {N} lattice pts. Compare to ", end=" ")
             print(f"previous iteration ({Nlast})...",
                   flush=True)
@@ -137,7 +174,7 @@ def enum_lattice_points(
             m *= 1.5
 
             Bguess = (np.log(min_N_pts)-Npts_fit[-1])/m + Bs_fit[-1]
-            Bguess = np.exp(Bguess)
+            Bguess = np.exp(min(Bguess, np.log(max_B) if max_B > 0 else 0))
             # With few points the log-log fit is noisy, so cap the step
             # at 5% of B to avoid large jumps on unreliable extrapolation
             if N <= 200:
@@ -153,8 +190,9 @@ def enum_lattice_points(
             # be very conservative with B if we have few points
             B += min(3, int(np.ceil(0.05*B)))
 
-    if len(pts) < min_N_pts:
-        warnings.warn(
-            f"returning {len(pts)} points, fewer than min_N_pts={min_N_pts}"
-        )
-    return pts
+    if len(best_pts) < min_N_pts:
+        msg = f"returning {len(best_pts)} points, fewer than min_N_pts={min_N_pts}"
+        if stop_why is not None:
+            msg += f"; stopped because {stop_why}"
+        warnings.warn(msg)
+    return best_pts

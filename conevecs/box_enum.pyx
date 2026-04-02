@@ -13,13 +13,14 @@ cdef extern from "box_enum.h":
     int _box_enum_c(
         int32_t * out,
         long * N_out,
+        long * N_nodes,
         int dim,
         int B,
         int * H,
         int rhs,
         int N_hyps,
         long max_N_out,
-        long max_N_iter
+        long max_N_nodes
     )
 
 # Python-exposed wrapper
@@ -28,7 +29,7 @@ def box_enum(B: int,
                 int[:, ::1] H,
                 int rhs,
                 long max_N_out,
-                long max_N_iter = -1) -> tuple[np.ndarray, int]:
+                long max_N_nodes = -1) -> tuple[np.ndarray, int, int]:
     """
     Enumerate lattice points ``vec`` obeying ``H @ vec >= rhs`` and
     ``|vec_i| <= B`` using Kannan's algorithm.
@@ -48,8 +49,11 @@ def box_enum(B: int,
         Minimum value each hyperplane constraint must satisfy. Inclusive.
     max_N_out : long
         Maximum number of output vectors allowed.
-    max_N_iter : long, optional
-        Maximum number of Kannan iterations. Defaults to ``1000 * max_N_out``.
+    max_N_nodes : long, optional
+        Maximum number of search tree nodes to visit (where N_nodes =
+        N_iterations + 1, counting the root). Defaults to
+        ``((2*B+1)**(dim+1) - 1) // (2*B)``, the node count for N_hyps=0
+        (no hyperplane constraints), i.e. the maximum possible for this B.
 
     Returns
     -------
@@ -60,12 +64,16 @@ def box_enum(B: int,
             0  : success
            -1  : dim > 256 (unsupported)
            -2  : exceeded max_N_out outputs
-           -3  : exceeded max_N_iter iterations
+           -3  : exceeded max_N_nodes
+    N_nodes : int
+        Number of search tree nodes visited (including the root), where
+        N_nodes = N_iterations + 1.
     """
     # read some inputs
     cdef int dim    = H.shape[1]
     cdef int N_hyps = H.shape[0]
     cdef long N_out = 0
+    cdef long N_nodes = 0
     cdef int status
 
     # allocate output arrays
@@ -81,30 +89,37 @@ def box_enum(B: int,
     H_np = H_np[:, sort_inds]
     H_np = np.ascontiguousarray(H_np, dtype=np.int32)
 
-    cdef int[:, ::1] H_view = H_np
-    cdef int *H_ptr = &H_view[0, 0]
+    cdef int[:, ::1] H_view
+    cdef int *H_ptr
+    if N_hyps > 0:
+        H_view = H_np
+        H_ptr = &H_view[0, 0]
+    else:
+        H_ptr = NULL
 
     cdef int32_t[::1] undo_sort_view = undo_sort_np
 
-    if max_N_iter == -1:
-        max_N_iter = 1000*max_N_out
+    if max_N_nodes == -1:
+        trivial = ((2*B + 1)**(dim + 1) - 1) // (2*B)
+        max_N_nodes = min(trivial, 9_200_000_000_000_000_000)  # cap at ~LONG_MAX
 
     # call the C function
     status = _box_enum_c(
         c_out,
         &N_out,
+        &N_nodes,
         dim,
         B,
         H_ptr,
         rhs,
         N_hyps,
         max_N_out,
-        max_N_iter
+        max_N_nodes
     );
 
     if N_out == 0:
         free(c_out)
-        return np.empty((0, dim), dtype=np.int32), status
+        return np.empty((0, dim), dtype=np.int32), status, N_nodes
 
     # unsort
     out = np.empty((N_out, dim), dtype=np.int32)
@@ -118,4 +133,4 @@ def box_enum(B: int,
     # free C memory
     free(c_out)
 
-    return out, status
+    return out, status, N_nodes
