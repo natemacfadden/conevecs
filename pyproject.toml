@@ -36,7 +36,7 @@ test = [
 ]
 
 [project.urls]
-Repository = "https://github.com/natmacfadden/conevecs"
+Repository = "https://github.com/natemacfadden/conevecs"
 
 [tool.setuptools]
 packages = ["conevecs"]
