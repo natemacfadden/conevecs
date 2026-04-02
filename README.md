@@ -2,6 +2,8 @@ Enumerates lattice points $\\{x\in\mathbb{Z}^{\text{dim}}: Hx\geq\text{rhs}\\}$ 
 
 The main use case is for finding lattice points in convex cones, for which $H$ are the inwards-facing hyperplanes. If $\text{rhs}=0$, this will find lattice points in the cone, including its boundary. If $\text{rhs}=1$, then this only finds lattice points in the strict interior of the cone.
 
+![Runtime vs N on the Manwe example (arXiv:2406.13751): conevecs outperforms PyNormaliz and OR-Tools CP-SAT](docs/benchmark_box_enum.png)
+
 ## Limitations
 
 - Maximum dimension: 256 (returns an error if `dim > 256`)
@@ -46,8 +48,8 @@ For direct control over the box size, `box_enum` enumerates all lattice points i
 ```python
 from conevecs import box_enum
 
-pts, status = box_enum(B=5, H=H, rhs=rhs, max_N_out=10_000)
-# status: 0 = success, -1 = dim>256, -2 = hit max_N_out, -3 = hit max_N_iter
+pts, status, N_nodes = box_enum(B=5, H=H, rhs=rhs, max_N_out=10_000)
+# status: 0 = success, -1 = dim>256, -2 = hit max_N_out, -3 = hit max_N_nodes
 ```
 
 ## Organization

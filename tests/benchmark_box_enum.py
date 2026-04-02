@@ -33,6 +33,12 @@ try:
 except ImportError:
     HAS_CPSAT = False
 
+try:
+    import matplotlib.pyplot as plt
+    HAS_MPL = True
+except ImportError:
+    HAS_MPL = False
+
 # =============================================================================
 # Hard-coded 'Manwe' data (from https://arxiv.org/abs/2406.13751)
 # Extracted from CYTools.
@@ -207,6 +213,11 @@ skip_box      = None
 skip_normaliz = "NI" if not HAS_NORMALIZ else None
 skip_cpsat    = "NI" if not HAS_CPSAT    else None
 
+plot_N        = []
+plot_t_box    = []
+plot_t_norm   = []
+plot_t_cpsat  = []
+
 for B in range(1, 30+1):
     if all(s is not None for s in (skip_box, skip_normaliz, skip_cpsat)):
         break
@@ -226,6 +237,8 @@ for B in range(1, 30+1):
         cw_str = f"{cone_width:>9.2e}"
         fd_str = f"{exploration_fraction:>9.2e}"
         ef_str = f"{efficiency:>9.2e}"
+        plot_N.append(N)
+        plot_t_box.append(elapsed)
         if elapsed > TIMEOUT:
             skip_box = "TO"
     else:
@@ -238,9 +251,10 @@ for B in range(1, 30+1):
     if skip_normaliz is None:
         t0 = time.perf_counter()
         run_normaliz(B)
-        elapsed = time.perf_counter() - t0
-        t_normaliz = _fmt(elapsed)
-        if elapsed > TIMEOUT:
+        elapsed_norm = time.perf_counter() - t0
+        t_normaliz = _fmt(elapsed_norm)
+        plot_t_norm.append(elapsed_norm)
+        if elapsed_norm > TIMEOUT:
             skip_normaliz = "TO"
     else:
         t_normaliz = _skip_fmt(skip_normaliz)
@@ -248,11 +262,38 @@ for B in range(1, 30+1):
     if skip_cpsat is None:
         t0 = time.perf_counter()
         run_cpsat(B)
-        elapsed = time.perf_counter() - t0
-        t_cpsat = _fmt(elapsed)
-        if elapsed > TIMEOUT:
+        elapsed_cp = time.perf_counter() - t0
+        t_cpsat = _fmt(elapsed_cp)
+        plot_t_cpsat.append(elapsed_cp)
+        if elapsed_cp > TIMEOUT:
             skip_cpsat = "TO"
     else:
         t_cpsat = _skip_fmt(skip_cpsat)
 
     print(f"{B:>3}  {n_str}  {cw_str}  {fd_str}  {ef_str}  {t_box}  {t_normaliz}  {t_cpsat}")
+
+# =============================================================================
+# Plot
+# =============================================================================
+
+if HAS_MPL and plot_N:
+    fig, ax = plt.subplots(figsize=(7, 4))
+
+    ax.plot(plot_N, plot_t_box, 'o-', color='steelblue', label='conevecs (box_enum)')
+    if plot_t_norm:
+        ax.plot(plot_N[:len(plot_t_norm)], plot_t_norm, 's--', color='tomato',   label='PyNormaliz')
+    if plot_t_cpsat:
+        ax.plot(plot_N[:len(plot_t_cpsat)], plot_t_cpsat, '^--', color='goldenrod', label='OR-Tools CP-SAT')
+
+    ax.set_xlabel('N')
+    ax.set_ylabel('time (s)')
+    ax.set_title('Lattice point enumeration: conevecs vs reference solvers\n'
+                 'Manwe, 7d example from arXiv:2406.13751')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.tick_params(labelsize=8, labelcolor='#888888')
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig('benchmark_box_enum.png', dpi=150)
+    plt.show()
+    print("saved benchmark_box_enum.png")
