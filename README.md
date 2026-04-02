@@ -1,10 +1,11 @@
 # conevecs
-Enumerates lattice points $\\{x\in\mathbb{Z}^{\text{dim}}: Hx\geq\text{rhs}\\}$ for $H\in\mathbb{Z}^{N,\text{dim}}$ and $\text{rhs}\in\mathbb{Z}$. Aims to do so efficiently.
+Efficient lattice point enumeration for convex cones (and related objects). Originally built for string compactification calculations where it outperforms PyNormaliz and OR-Tools CP-SAT. See following benchmark using geometry 'Manwe' from https://arxiv.org/abs/2406.13751:
 
-The main use case is for finding lattice points in convex cones, for which $H$ are the inwards-facing hyperplanes. If $\text{rhs}=0$, this will find lattice points in the cone, including its boundary. If $\text{rhs}=1$, then this only finds lattice points in the strict interior of the cone.
+<p align="center">                                                                                                  
+  <img src="docs/benchmark_box_enum.png" alt="Runtime vs N on the Manwe example (arXiv:2406.13751): conevecs outperforms PyNormaliz and OR-Tools CP-SAT"/>                                                                       
+</p>   
 
-Currently, the performance is competitive compared to CP-SAT and Normaliz.
-![Runtime vs N on the Manwe example (arXiv:2406.13751): conevecs outperforms PyNormaliz and OR-Tools CP-SAT](docs/benchmark_box_enum.png)
+More explicitly, `conevecs` enumerates lattice points $\\{x\in\mathbb{Z}^{\text{dim}}: Hx\geq\text{rhs}\\}$ for $H\in\mathbb{Z}^{N,\text{dim}}$ and $\text{rhs}\in\mathbb{Z}$. For convex cones, $H$ are the inwards-facing hyperplanes. If $\text{rhs}=0$, this will find lattice points in the cone, including its boundary. If $\text{rhs}=1$, then this only finds lattice points in the strict interior of the cone. All integer values of $\text{rhs}$ are allowed.
 
 ## Limitations
 
