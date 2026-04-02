@@ -1,4 +1,6 @@
 # conevecs
+*[Nate MacFadden](https://github.com/natemacfadden), McAllister Group, Cornell*
+
 Efficient lattice point enumeration for convex cones (and related objects), via a C/Cython implementation of Kannan's algorithm. Originally built for string compactification calculations where it outperforms PyNormaliz and OR-Tools CP-SAT. See following benchmark using geometry 'Manwe' from https://arxiv.org/abs/2406.13751:
 
 <p align="center">                                                                                                  
