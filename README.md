@@ -1,5 +1,5 @@
 # conevecs
-Efficient lattice point enumeration for convex cones (and related objects). Originally built for string compactification calculations where it outperforms PyNormaliz and OR-Tools CP-SAT. See following benchmark using geometry 'Manwe' from https://arxiv.org/abs/2406.13751:
+Efficient lattice point enumeration for convex cones (and related objects), via a C/Cython implementation of Kannan's algorithm. Originally built for string compactification calculations where it outperforms PyNormaliz and OR-Tools CP-SAT. See following benchmark using geometry 'Manwe' from https://arxiv.org/abs/2406.13751:
 
 <p align="center">                                                                                                  
   <img src="docs/benchmark_box_enum.png" alt="Runtime vs N on the Manwe example (arXiv:2406.13751): conevecs outperforms PyNormaliz and OR-Tools CP-SAT"/>                                                                       
