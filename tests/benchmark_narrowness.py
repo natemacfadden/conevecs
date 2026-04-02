@@ -55,7 +55,7 @@ def make_H(a, b):
     return np.array(rows, dtype=np.int32)
 
 # =============================================================================
-# Build c values: 20 targets log-spaced in c-1 from 1e-6 to 3
+# Build c values: 30 targets log-spaced in c-1 from 1e-6 to 3
 # =============================================================================
 
 c_targets = 1 + np.logspace(-6, np.log10(3), 30)
