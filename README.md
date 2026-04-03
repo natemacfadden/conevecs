@@ -60,11 +60,11 @@ Requires a C compiler and Cython. NumPy must be installed first.
 
 ## Algorithm Notes
 
-This repo contains a Cython wrapper of a C implementation of [Kannan's algorithm](https://doi.org/10.1287/moor.12.3.415). See [this webpage](https://cseweb.ucsd.edu/~daniele/Lattice/Enum.html) for some other relevant work (not by me). The core algorithm enumerates lattice points in square boxes $|x_i|\leq B$ for $B\geq 1$. I.e.,
+This repo contains a Cython wrapper of a C implementation of [Kannan's algorithm](https://doi.org/10.1287/moor.12.3.415). See [this webpage](https://cseweb.ucsd.edu/~daniele/Lattice/Enum.html) for some other relevant work (not by me). The core algorithm in this repo enumerates lattice points in square boxes $|x_i|\leq B$ for $B\geq 1$. I.e.,
 
 $$ \\{x\in\mathbb{Z}^{\text{dim}}: Hx\geq\text{rhs} \text{ and } |x|_\infty \leq B\\}. $$
 
-This is a [short algorithm](https://github.com/natemacfadden/latticepts/blob/main/latticepts/box_enum.h), only $\leq 350$ lines - I encourage you to read it.
+It is a [short algorithm](https://github.com/natemacfadden/latticepts/blob/main/latticepts/box_enum.h), only $\leq 350$ lines - I encourage you to read it.
 
 A helper method is provided in case the user wants $N$ points but doesn't care about box size. In this case, boxes of increasing sizes are studied until $\geq N$ lattice points are found.
 
