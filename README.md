@@ -70,7 +70,7 @@ A helper method is provided in case the user wants $N$ points but doesn't care a
 
 ## Usage
 
-The primary interface is `enum_lattice_points`, which handles box sizing automatically:
+The primary interface is `enum_lattice_points`, which handles box sizing automatically. For example, applying `enum_lattice_points` to lattice points in the strict interior of a convex cone:
 
 ```python
 import numpy as np
@@ -86,7 +86,7 @@ pts = enum_lattice_points(H=H, rhs=rhs, min_N_pts=1000)
 pts = enum_lattice_points(H=H, rhs=rhs, min_N_pts=1000, primitive=True)
 ```
 
-For direct control over the box size, `box_enum` enumerates all lattice points in $\\{x: Hx \geq \text{rhs},\\ |x|_\infty \leq B\\}$:
+For direct control over the box size, `box_enum` allows you to set the box size. I.e., enumerate all lattice points in $\\{x: Hx \geq \text{rhs},\\ |x|_\infty \leq B\\}$:
 
 ```python
 from latticepts import box_enum
@@ -95,7 +95,7 @@ pts, status, N_nodes = box_enum(B=5, H=H, rhs=rhs, max_N_out=10_000)
 # status: 0 = success, -1 = dim>256, -2 = hit max_N_out, -3 = hit max_N_nodes
 ```
 
-If the H-representation of a polytope is known, `box_enum` directly enumerates its lattice points given a bounding box. If the V-representation is also known, a bounding box is trivially obtained as $B = \max|v_i|$ over all vertices. For example, the h11=491 4d reflexive polytope:
+These methods directly apply to polytopes if an H-representation is known. In such a use-case, `box_enum` is more applicable (`enum_lattice_points` is more-so designed for unbounded polyhedra). If the V-representation is also known, a bounding box is trivially obtained as $B = \max|v_i|$ over all vertices. For example, the $h^{1,1}=491$ 4D reflexive polytope:
 
 ```python
 import numpy as np
