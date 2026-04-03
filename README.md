@@ -7,7 +7,11 @@ Efficient lattice point enumeration for convex polyhedra, via a C/Cython impleme
   <img src="docs/benchmark_box_enum.png" alt="Runtime vs N on the Manwe example (arXiv:2406.13751): latticepts outperforms PyNormaliz and OR-Tools CP-SAT"/>                                                                       
 </p>   
 
-More explicitly, `latticepts` enumerates lattice points $\\{x\in\mathbb{Z}^{\text{dim}}: Hx\geq\text{rhs}\\}$ for $H\in\mathbb{Z}^{N,\text{dim}}$ and $\text{rhs}\in\mathbb{Z}^N$. Here $H$ are the inward-facing normals of the polyhedron's facets and $\text{rhs}$ are the corresponding offsets. All integer values of $\text{rhs}$ are allowed.
+More explicitly, `latticepts` enumerates lattice points
+
+$$ \\{x\in\mathbb{Z}^{\text{dim}}: Hx\geq\text{rhs}\\} $$
+
+for $H\in\mathbb{Z}^{N_\text{hyps}\times\text{dim}}$ and $\text{rhs}\in\mathbb{Z}^{N_\text{hyps}}$. Here each row of $H$ is an inward-facing facet normal and the corresponding entry of $\text{rhs}$ is its offset. Cones correspond to $\text{rhs}=0$; polyhedra to nonzero $\text{rhs}$.
 
 ## Limitations
 
@@ -43,20 +47,39 @@ from latticepts import enum_lattice_points
 H   = np.array([[1, 2], [3, -1]], dtype=np.int32)
 rhs = 1
 
-# Find at least 1000 lattice points in {H @ x >= rhs}
+# Find at least 1000 lattice points in {x : H @ x >= rhs}
 pts = enum_lattice_points(H=H, rhs=rhs, min_N_pts=1000)
 
 # Optionally restrict to primitive vectors (GCD = 1)
 pts = enum_lattice_points(H=H, rhs=rhs, min_N_pts=1000, primitive=True)
 ```
 
-For direct control over the box size, `box_enum` enumerates all lattice points in $\\{Hx \geq \text{rhs},\\ |x|_\infty \leq B\\}$:
+For direct control over the box size, `box_enum` enumerates all lattice points in $\\{x: Hx \geq \text{rhs},\\ |x|_\infty \leq B\\}$:
 
 ```python
 from latticepts import box_enum
 
 pts, status, N_nodes = box_enum(B=5, H=H, rhs=rhs, max_N_out=10_000)
 # status: 0 = success, -1 = dim>256, -2 = hit max_N_out, -3 = hit max_N_nodes
+```
+
+If the H-representation of a polytope is known, `box_enum` directly enumerates its lattice points given a bounding box. If the V-representation is also known, a bounding box is trivially obtained as $B = \max|v_i|$ over all vertices. For example, the h11=491 4d reflexive polytope:
+
+```python
+import numpy as np
+from latticepts import box_enum
+
+H   = np.array([[ 1,   0,   0,   0],
+                [-15,  8,   6,   1],
+                [-15,  8,   6,  -1],
+                [ -1,  1,  -1,   0],
+                [  0, -1,   0,   0]], dtype=np.int32)
+rhs = np.array([-1, -1, -1, -1, -1], dtype=np.int32)
+# has bounding box B = max(|vertices|) = 42 (basis-dependent)
+B   = 42
+
+# one can then get the lattice points via:
+pts, status, N_nodes = box_enum(B=B, H=H, rhs=rhs, max_N_out=10_000)
 ```
 
 ## Organization
