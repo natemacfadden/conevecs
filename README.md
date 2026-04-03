@@ -25,7 +25,17 @@ Efficient lattice point enumeration for convex polyhedra, via a C/Cython impleme
 
 ## Citation
 
-If you use this code in your research, please cite the GitHub URL: https://github.com/natemacfadden/latticepts
+If you use `latticepts` in your research, please cite it:
+
+```bibtex
+@software{latticepts,
+  author  = {MacFadden, Nate},
+  title   = {latticepts},
+  doi     = {10.5281/zenodo.19405318},
+  url     = {https://github.com/natemacfadden/latticepts},
+  orcid   = {0000-0002-8481-3724},
+}
+```
 
 ## Description
 

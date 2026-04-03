@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: latticepts
+abstract: "A Python package wrapping a C/Cython implementation of Kannan's algorithm for enumerating lattice points in convex polyhedra, using an explicit bound on the L-infinity norm on the points."
+authors:
+  - family-names: MacFadden
+    given-names: Nate
+    orcid: https://orcid.org/0000-0002-8481-3724
+repository-code: https://github.com/natemacfadden/latticepts
+license: MIT
+doi: 10.5281/zenodo.19405318
+type: software
