@@ -24,6 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
+    "psutil",
 ]
 requires-python = ">=3.9"
 

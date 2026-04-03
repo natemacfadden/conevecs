@@ -117,7 +117,7 @@ H = np.array([
 
 dim = H.shape[1]
 
-MAX_N_OUT  = 10_000_000_000
+MAX_N_OUT  = 10_000_000
 MAX_N_NODES = 1_000_000_000_000
 
 DILATIONS      = list(range(1, 11))

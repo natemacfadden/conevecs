@@ -1,11 +1,25 @@
 # latticepts
 *[Nate MacFadden](https://github.com/natemacfadden), Liam McAllister Group, Cornell*
 
-Efficient lattice point enumeration for convex polyhedra, via a C/Cython implementation of Kannan's algorithm. Originally built for string compactification calculations where it outperforms PyNormaliz and OR-Tools CP-SAT. See following benchmark using geometry 'Manwe' from https://arxiv.org/abs/2406.13751:
+Efficient lattice point enumeration for convex polyhedra, via a C/Cython implementation of Kannan's algorithm. Originally built for string compactification calculations where it outperforms PyNormaliz and OR-Tools CP-SAT.
 
-<p align="center">                                                                                                  
-  <img src="docs/benchmark_box_enum.png" alt="Runtime vs N on the Manwe example (arXiv:2406.13751): latticepts outperforms PyNormaliz and OR-Tools CP-SAT"/>                                                                       
-</p>   
+**Runtime vs requested output size** (geometry 'Manwe', h11=491, 7D, https://arxiv.org/abs/2406.13751):
+
+<p align="center">
+  <img src="docs/benchmark_box_enum.png" alt="Runtime vs N on the Manwe example: latticepts outperforms PyNormaliz and OR-Tools CP-SAT"/>
+</p>
+
+**Runtime vs size of 4D reflexive polytope** (measured by h11, one polytope per h11 value, h11 = 6..491):
+
+<p align="center">
+  <img src="docs/benchmark_h11.png" alt="Runtime vs h11 for 4D reflexive polytopes"/>
+</p>
+
+**Runtime vs dimension** (length-2 hypercube, dim = 2..14):
+
+<p align="center">
+  <img src="docs/benchmark_dim.png" alt="Runtime vs dimension for the length-2 hypercube"/>
+</p>
 
 More explicitly, `latticepts` enumerates lattice points
 

@@ -7,6 +7,7 @@ from libc.stdint cimport int32_t
 from libc.stdlib cimport malloc, free
 import numpy as np
 import os
+import psutil
 
 # declare the external C function
 # -------------------------------
@@ -98,7 +99,9 @@ def box_enum(B: int,
 
     # allocate output arrays
     if max_bytes is None:
-        max_bytes = int(0.9 * os.sysconf('SC_PHYS_PAGES') * os.sysconf('SC_PAGE_SIZE'))
+        # Two equally-sized arrays are held in memory simultaneously (c_out and
+        # the numpy output), so cap each at half of 80% of available RAM.
+        max_bytes = int(0.5 * 0.8 * psutil.virtual_memory().available)
     needed = max_N_out * dim * sizeof(int32_t)
     if needed > max_bytes:
         raise MemoryError(

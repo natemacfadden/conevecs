@@ -77,7 +77,7 @@ def enum_lattice_points(
     if min_N_pts <= 0:
         raise ValueError(f"min_N_pts must be > 0, got {min_N_pts}.")
 
-    max_N_out = max(10_000, 10*min_N_pts)
+    max_N_out = max(10_000, 100*min_N_pts)
 
     H = np.asarray(H, dtype=np.int32)
     dim = H.shape[1]

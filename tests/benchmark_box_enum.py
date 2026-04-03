@@ -15,6 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # =============================================================================
 
+import os
 import numpy as np
 import time
 
@@ -281,9 +282,9 @@ if HAS_MPL and plot_N:
 
     ax.plot(plot_N, plot_t_box, 'o-', color='steelblue', label='latticepts (box_enum)')
     if plot_t_norm:
-        ax.plot(plot_N[:len(plot_t_norm)], plot_t_norm, 's--', color='tomato',   label='PyNormaliz')
+        ax.plot(plot_N[:len(plot_t_norm)], plot_t_norm, 's--', color='tomato',   label='Normaliz')
     if plot_t_cpsat:
-        ax.plot(plot_N[:len(plot_t_cpsat)], plot_t_cpsat, '^--', color='goldenrod', label='OR-Tools CP-SAT')
+        ax.plot(plot_N[:len(plot_t_cpsat)], plot_t_cpsat, '^--', color='goldenrod', label='CP-SAT')
 
     ax.set_xlabel('N')
     ax.set_ylabel('time (s)')
@@ -291,9 +292,9 @@ if HAS_MPL and plot_N:
                  'Manwe, 7d example from arXiv:2406.13751')
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.tick_params(labelsize=8, labelcolor='#888888')
     ax.legend()
     plt.tight_layout()
-    plt.savefig('benchmark_box_enum.png', dpi=150)
+    out = os.path.join(os.path.dirname(__file__), '..', 'docs', 'benchmark_box_enum.png')
+    plt.savefig(out, dpi=150)
     plt.show()
-    print("saved benchmark_box_enum.png")
+    print(f"Saved {out}")
