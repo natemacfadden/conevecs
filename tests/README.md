@@ -14,7 +14,7 @@ pytest tests/
 | `benchmark_polytopes.py` | Runtime vs dimension for the length-2 hypercube; runtime vs h11 for 4D reflexive polytopes |
 | `benchmark_box_enum.py` | Runtime vs bounding box size B for the Manwe geometry (h11=491, 7D) |
 | `benchmark_enum_lattice_points.py` | Runtime vs requested number of lattice points N in the strict interior of the Manwe cone (h11=491, 7D) |
-| `benchmark_narrowness.py` | Runtime vs narrowness for a 4D cone defined by pairwise ratio constraints `x_i/x_j ∈ [1/c, c]` |
+| `benchmark_narrowness.py` | Runtime vs narrowness for a 4D convex cone |
 
 ## Optional competitor dependencies
 

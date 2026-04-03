@@ -107,10 +107,12 @@ latticepts/
 ├── tests/
 │   ├── conftest.py                      # shared test helpers (pytest)
 │   ├── test_box_enum.py                 # generic tests
-│   ├── test_manwe.py                    # tests relating to 'Manwe' https://arxiv.org/abs/2406.13751
+│   ├── test_manwe.py                    # tests relating to 'Manwe' (arXiv:2406.13751)
 │   ├── test_enum_lattice_points.py      # tests for enum_lattice_points
-│   ├── benchmark_box_enum.py            # B-dilation benchmark for 'Manwe'
-│   ├── benchmark_enum_lattice_points.py # N-scaling benchmark for 'Manwe'
+│   ├── benchmark_box_enum.py            # runtime vs B for the Manwe geometry (h11=491, 7D)
+│   ├── benchmark_enum_lattice_points.py # runtime vs requested N for the Manwe cone (h11=491, 7D)
+│   ├── benchmark_polytopes.py           # runtime vs h11 for 4D reflexive polytopes; runtime vs dimension for hypercubes
+│   ├── benchmark_narrowness.py          # runtime vs narrowness for a 4D convex cone
 |   └── c/                               # simple C-kernel tests (no Python interface)
 ├── pyproject.toml
 └── setup.py
