@@ -1,7 +1,7 @@
 # latticepts
 *[Nate MacFadden](https://github.com/natemacfadden), Liam McAllister Group, Cornell*
 
-[![DOI](https://zenodo.org/badge/1197672953.svg)](https://doi.org/10.5281/zenodo.19405318)
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.19406651.svg)](https://doi.org/10.5281/zenodo.19406651)
 
 Efficient lattice point enumeration for convex polyhedra, via a C/Cython implementation of Kannan's algorithm. Originally built for string compactification calculations where it outperforms PyNormaliz and OR-Tools CP-SAT.
 
@@ -31,7 +31,7 @@ If you use `latticepts` in your research, please cite it:
 @software{latticepts,
   author  = {MacFadden, Nate},
   title   = {latticepts},
-  doi     = {10.5281/zenodo.19405318},
+  doi     = {10.5281/zenodo.19406651},
   url     = {https://github.com/natemacfadden/latticepts},
   orcid   = {0000-0002-8481-3724},
 }
