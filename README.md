@@ -5,7 +5,7 @@
 
 Efficient lattice point enumeration for convex polyhedra, via a C/Cython implementation of Kannan's algorithm. Originally built for finding lattice points in the strict interior of convex cones.
 
-**Convex  cones:** runtime vs requested number of interior lattice points (geometry 'Manwe', h11=491, 7D, https://arxiv.org/abs/2406.13751):
+**Convex cones:** runtime vs requested number of interior lattice points (geometry 'Manwe', h11=491, 7D, https://arxiv.org/abs/2406.13751):
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/natemacfadden/latticepts/main/docs/benchmark_box_enum.png" alt="Runtime vs N on the Manwe example: latticepts outperforms PyNormaliz and OR-Tools CP-SAT"/>
@@ -17,7 +17,7 @@ Efficient lattice point enumeration for convex polyhedra, via a C/Cython impleme
   <img src="https://raw.githubusercontent.com/natemacfadden/latticepts/main/docs/benchmark_h11.png" alt="Runtime vs h11 for 4D reflexive polytopes"/>
 </p>
 
-**More polytopes** runtime vs dimension of length-2 hypercubes (dim = 2..14; x-axis is $3^{\text{dim}}$):
+**More polytopes:** runtime vs dimension of length-2 hypercubes (dim = 2..14; x-axis is $3^{\text{dim}}$):
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/natemacfadden/latticepts/main/docs/benchmark_dim.png" alt="Runtime vs dimension for the length-2 hypercube"/>
@@ -95,7 +95,7 @@ pts, status, N_nodes = box_enum(B=5, H=H, rhs=rhs, max_N_out=10_000)
 # status: 0 = success, -1 = dim>256, -2 = hit max_N_out, -3 = hit max_N_nodes
 ```
 
-These methods directly apply to polytopes if an H-representation is known. In such a use-case, `box_enum` is more applicable (`enum_lattice_points` is more-so designed for unbounded polyhedra). If the V-representation is also known, a bounding box is trivially obtained as $B = \max|v_i|$ over all vertices. For example, the $h^{1,1}=491$ 4D reflexive polytope:
+These methods directly apply to polytopes if an H-representation is known. In such a use-case, `box_enum` is more applicable (`enum_lattice_points` is more so designed for unbounded polyhedra). If the V-representation is also known, a bounding box is trivially obtained as $B = \max|v_i|$ over all vertices. For example, the $h^{1,1}=491$ 4D reflexive polytope:
 
 ```python
 import numpy as np
