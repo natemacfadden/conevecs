@@ -6,6 +6,7 @@
 from libc.stdint cimport int32_t
 from libc.stdlib cimport malloc, free
 import numpy as np
+import os
 
 # declare the external C function
 # -------------------------------
@@ -17,7 +18,7 @@ cdef extern from "box_enum.h":
         int dim,
         int B,
         int * H,
-        int rhs,
+        int * rhs,
         int N_hyps,
         long max_N_out,
         long max_N_nodes
@@ -27,9 +28,10 @@ cdef extern from "box_enum.h":
 # ----------------------
 def box_enum(B: int,
                 int[:, ::1] H,
-                int rhs,
+                rhs,
                 long max_N_out,
-                long max_N_nodes = -1) -> tuple[np.ndarray, int, int]:
+                long max_N_nodes = -1,
+                max_bytes: int = None) -> tuple[np.ndarray, int, int]:
     """
     Enumerate lattice points ``vec`` obeying ``H @ vec >= rhs`` and
     ``|vec_i| <= B`` using Kannan's algorithm.
@@ -44,9 +46,10 @@ def box_enum(B: int,
         Box half-width: each component satisfies ``|vec_i| <= B``.
     H : int[:, ::1] of shape (N_hyps, dim)
         Hyperplane constraint matrix. Each row defines one inequality
-        ``H[i] @ vec >= rhs``.
-    rhs : int
-        Minimum value each hyperplane constraint must satisfy. Inclusive.
+        ``H[i] @ vec >= rhs[i]``.
+    rhs : int or array-like of int, shape (N_hyps,)
+        Right-hand side of the hyperplane constraints. A scalar is broadcast
+        to all constraints (i.e. ``H @ vec >= rhs`` uniformly).
     max_N_out : long
         Maximum number of output vectors allowed.
     max_N_nodes : long, optional
@@ -76,7 +79,33 @@ def box_enum(B: int,
     cdef long N_nodes = 0
     cdef int status
 
+    # normalize rhs: scalar broadcasts to all constraints
+    if np.ndim(rhs) == 0:
+        rhs_np = np.full(N_hyps, rhs, dtype=np.int32)
+    else:
+        rhs_np = np.asarray(rhs, dtype=np.int32)
+        if rhs_np.shape[0] != N_hyps:
+            raise ValueError(
+                f"rhs length {rhs_np.shape[0]} != N_hyps {N_hyps}")
+
+    cdef int[::1] rhs_view
+    cdef int *rhs_ptr
+    if N_hyps > 0:
+        rhs_view = rhs_np
+        rhs_ptr = &rhs_view[0]
+    else:
+        rhs_ptr = NULL
+
     # allocate output arrays
+    if max_bytes is None:
+        max_bytes = int(0.9 * os.sysconf('SC_PHYS_PAGES') * os.sysconf('SC_PAGE_SIZE'))
+    needed = max_N_out * dim * sizeof(int32_t)
+    if needed > max_bytes:
+        raise MemoryError(
+            f"Requested output buffer ({needed / 2**30:.2f} GB) exceeds "
+            f"max_bytes ({max_bytes / 2**30:.2f} GB). "
+            f"Pass a larger max_bytes or reduce max_N_out."
+        )
     cdef int32_t *c_out = <int32_t *>malloc(max_N_out * dim * sizeof(int32_t))
     if c_out == NULL:
         raise MemoryError("Failed to allocate c_out")
@@ -111,7 +140,7 @@ def box_enum(B: int,
         dim,
         B,
         H_ptr,
-        rhs,
+        rhs_ptr,
         N_hyps,
         max_N_out,
         max_N_nodes

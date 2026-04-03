@@ -18,7 +18,7 @@
 import numpy as np
 import pytest
 
-from conevecs import enum_lattice_points
+from latticepts import enum_lattice_points
 
 # =============================================================================
 # Hard-coded 'Manwe' data (from https://arxiv.org/abs/2406.13751)

@@ -7,13 +7,13 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "conevecs"
+name = "latticepts"
 version = "0.0.1"
-description = "A software package for enumerating lattice points in convex cones"
+description = "A software package for enumerating lattice points in convex polyhedra"
 authors = [{ name = "Nate MacFadden for the Liam McAllister Group" }]
 readme = "README.md"
 license = "GPL-3.0-or-later"
-keywords = ["lattice", "enumeration", "convex cone", "Kannan", "geometry of numbers"]
+keywords = ["lattice", "enumeration", "convex polyhedron", "Kannan", "geometry of numbers"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Cython",
@@ -36,7 +36,7 @@ test = [
 ]
 
 [project.urls]
-Repository = "https://github.com/natemacfadden/conevecs"
+Repository = "https://github.com/natemacfadden/latticepts"
 
 [tool.setuptools]
-packages = ["conevecs"]
+packages = ["latticepts"]

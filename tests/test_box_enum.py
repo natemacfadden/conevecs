@@ -18,7 +18,7 @@
 import numpy as np
 import pytest
 
-from conevecs import box_enum
+from latticepts import box_enum
 from conftest import _sort_rows, _run_normaliz, _run_cpsat
 
 # the following imports are only needed for testing

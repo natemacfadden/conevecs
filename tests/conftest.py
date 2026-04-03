@@ -39,15 +39,16 @@ def _run_normaliz(H, B, rhs):
     """
     Encode H @ x >= rhs and |x_i| <= B as inhomogeneous ineqs for PyNormaliz
 
-    Each row [a | -rhs] encodes a @ x >= rhs in the inhomogeneous format
+    Each row [a | -rhs[i]] encodes a @ x >= rhs[i] in the inhomogeneous format
 
     Box constraints |x_i| <= B are added as pairs x_i <= B, -x_i <= B, encoded
     as [e_i | B] and [-e_i | B].
     """
     dim = H.shape[1]
+    rhs_vec = np.broadcast_to(rhs, (H.shape[0],))
 
     # hyperplane constraints
-    ineqs = [list(map(int, row)) + [-rhs] for row in H]
+    ineqs = [list(map(int, row)) + [-int(rhs_vec[i])] for i, row in enumerate(H)]
 
     # box constraints
     for i in range(dim):
@@ -75,12 +76,13 @@ def _run_cpsat(H, B, rhs):
     Box constraints are implicit in the variable bounds [-B, B]
     """
     dim = H.shape[1]
+    rhs_vec = np.broadcast_to(rhs, (H.shape[0],))
 
     # build model
     model = cp_model.CpModel()
     xs = [model.new_int_var(-B, B, f'x{i}') for i in range(dim)]
-    for row in H:
-        model.add(sum(int(row[i]) * xs[i] for i in range(dim)) >= rhs)
+    for j, row in enumerate(H):
+        model.add(sum(int(row[i]) * xs[i] for i in range(dim)) >= int(rhs_vec[j]))
 
     # collect all solutions
     solutions = []

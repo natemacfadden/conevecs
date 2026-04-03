@@ -65,7 +65,7 @@ jobs:
     needs: [make-sdist, make-wheels]
     environment:
       name: pypi
-      url: https://pypi.org/p/conevecs
+      url: https://pypi.org/p/latticepts
     permissions:
       id-token: write
     if: github.event_name == 'release' && github.event.action == 'published'

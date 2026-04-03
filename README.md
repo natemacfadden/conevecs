@@ -1,13 +1,13 @@
-# conevecs
+# latticepts
 *[Nate MacFadden](https://github.com/natemacfadden), Liam McAllister Group, Cornell*
 
-Efficient lattice point enumeration for convex cones (and related objects), via a C/Cython implementation of Kannan's algorithm. Originally built for string compactification calculations where it outperforms PyNormaliz and OR-Tools CP-SAT. See following benchmark using geometry 'Manwe' from https://arxiv.org/abs/2406.13751:
+Efficient lattice point enumeration for convex polyhedra, via a C/Cython implementation of Kannan's algorithm. Originally built for string compactification calculations where it outperforms PyNormaliz and OR-Tools CP-SAT. See following benchmark using geometry 'Manwe' from https://arxiv.org/abs/2406.13751:
 
 <p align="center">                                                                                                  
-  <img src="docs/benchmark_box_enum.png" alt="Runtime vs N on the Manwe example (arXiv:2406.13751): conevecs outperforms PyNormaliz and OR-Tools CP-SAT"/>                                                                       
+  <img src="docs/benchmark_box_enum.png" alt="Runtime vs N on the Manwe example (arXiv:2406.13751): latticepts outperforms PyNormaliz and OR-Tools CP-SAT"/>                                                                       
 </p>   
 
-More explicitly, `conevecs` enumerates lattice points $\\{x\in\mathbb{Z}^{\text{dim}}: Hx\geq\text{rhs}\\}$ for $H\in\mathbb{Z}^{N,\text{dim}}$ and $\text{rhs}\in\mathbb{Z}$. For convex cones, $H$ are the inwards-facing hyperplanes. If $\text{rhs}=0$, this will find lattice points in the cone, including its boundary. If $\text{rhs}=1$, then this only finds lattice points in the strict interior of the cone. All integer values of $\text{rhs}$ are allowed.
+More explicitly, `latticepts` enumerates lattice points $\\{x\in\mathbb{Z}^{\text{dim}}: Hx\geq\text{rhs}\\}$ for $H\in\mathbb{Z}^{N,\text{dim}}$ and $\text{rhs}\in\mathbb{Z}^N$. Here $H$ are the inward-facing normals of the polyhedron's facets and $\text{rhs}$ are the corresponding offsets. All integer values of $\text{rhs}$ are allowed.
 
 ## Limitations
 
@@ -28,7 +28,7 @@ This repo contains a Cython wrapper of a C implementation of [Kannan's algorithm
 
 $$ \\{x\in\mathbb{Z}^{\text{dim}}: Hx\geq\text{rhs} \text{ and } |x|_\infty \leq B\\}. $$
 
-This [core algorithm](https://github.com/natemacfadden/conevecs/blob/main/conevecs/box_enum.h) is $\leq 350$ lines - I encourage you to read it.
+This [core algorithm](https://github.com/natemacfadden/latticepts/blob/main/latticepts/box_enum.h) is $\leq 350$ lines - I encourage you to read it.
 
 A helper method is provided in case the user wants $N$ points but doesn't care about box size. In this case, boxes of increasing sizes are studied until $\geq N$ lattice points are found.
 
@@ -38,7 +38,7 @@ The primary interface is `enum_lattice_points`, which handles box sizing automat
 
 ```python
 import numpy as np
-from conevecs import enum_lattice_points
+from latticepts import enum_lattice_points
 
 H   = np.array([[1, 2], [3, -1]], dtype=np.int32)
 rhs = 1
@@ -53,7 +53,7 @@ pts = enum_lattice_points(H=H, rhs=rhs, min_N_pts=1000, primitive=True)
 For direct control over the box size, `box_enum` enumerates all lattice points in $\\{Hx \geq \text{rhs},\\ |x|_\infty \leq B\\}$:
 
 ```python
-from conevecs import box_enum
+from latticepts import box_enum
 
 pts, status, N_nodes = box_enum(B=5, H=H, rhs=rhs, max_N_out=10_000)
 # status: 0 = success, -1 = dim>256, -2 = hit max_N_out, -3 = hit max_N_nodes
@@ -62,11 +62,11 @@ pts, status, N_nodes = box_enum(B=5, H=H, rhs=rhs, max_N_out=10_000)
 ## Organization
 
 ```
-conevecs/
-├── conevecs/
+latticepts/
+├── latticepts/
 │   ├── box_enum.h               # STB-style library for the Kannan enumeration
 |   ├── box_enum.pyx             # Cython wrapper
-|   └── conevecs.py              # a wrapper for box_enum, increasing box size until N points are found
+|   └── latticepts.py              # a wrapper for box_enum, increasing box size until N points are found
 ├── tests/
 │   ├── conftest.py                      # shared test helpers (pytest)
 │   ├── test_box_enum.py                 # generic tests

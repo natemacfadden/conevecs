@@ -29,9 +29,10 @@ B : int
     Box half-width: each component satisfies |vec_i| <= B.
 H : int*
     Constraint matrix of shape (N_hyps, dim), in row-major order. Each row
-    defines one inequality ``H[i] @ vec >= rhs``.
-rhs : int
-    Right-hand side of all hyperplane constraints.
+    defines one inequality ``H[i] @ vec >= rhs[i]``.
+rhs : int*
+    Right-hand side of each hyperplane constraint, of length N_hyps.
+    May be NULL when N_hyps == 0.
 N_hyps : int
     Number of hyperplane constraints (rows of H).
 max_N_out : long
@@ -57,7 +58,7 @@ int _box_enum_c(
     int dim,
     int B,
     int * restrict H,
-    int rhs,
+    int * restrict rhs,
     int N_hyps,
     long max_N_out,
     long max_N_nodes
@@ -97,7 +98,7 @@ static inline int set_bounds(
     int N_hyps,
     int B,
     int * restrict H,
-    int rhs,
+    int * restrict rhs,
     int64_t * restrict stack_partial_sum,
     int * restrict abssum,
     int32_t * restrict stack_val_min,
@@ -113,7 +114,7 @@ static inline int set_bounds(
         Current stack depth.
     i : int
         Component index being bounded.
-    dim, N_hyps, B, H, rhs : (see _box_enum_c)
+    dim, N_hyps, B, H, rhs : (see _box_enum_c; rhs[j] is the bound for constraint j)
     stack_partial_sum : int32_t*
         Partial dot products ``H @ vec`` for components already fixed.
     abssum : int*
@@ -134,20 +135,20 @@ static inline int set_bounds(
     // cut by each hyperplane
     for (int j=0; j<N_hyps; ++j) {
         /*
-        Imposes constraint dot(H[j,:], vec) >= rhs.
-        
+        Imposes constraint dot(H[j,:], vec) >= rhs[j].
+
         Split:
-            rhs <= dot(H[j,:i],vec[:i])
-                 + H[j,i]*vec[i]
-                 + dot(H[j,i+1:],vec[i+1:])
+            rhs[j] <= dot(H[j,:i],vec[:i])
+                    + H[j,i]*vec[i]
+                    + dot(H[j,i+1:],vec[i+1:])
         the third term is stack_partial_sum[j], so
-            rhs <= dot(H[j,:i],vec[:i])
-                 + H[j,i]*vec[i]
-                 + stack_partial_sum[j].
+            rhs[j] <= dot(H[j,:i],vec[:i])
+                    + H[j,i]*vec[i]
+                    + stack_partial_sum[j].
         The maximum value possible of dot(H[j,:i],vec[:i]) is
             dot(H[j,:i],vec[:i]) <= B*sum(abs(H[j,:i])).
         Thus
-            rhs - stack_partial_sum[j] - B*sum(abs(H[j,:i])) <=  H[j,i]*vec[i].
+            rhs[j] - stack_partial_sum[j] - B*sum(abs(H[j,:i])) <=  H[j,i]*vec[i].
 
         The term B * sum(abs(H[j,:i])) is the 'slack'. It is where any looseness
         in our bounds can arise from. Ideally, then, you'd want
@@ -164,7 +165,7 @@ static inline int set_bounds(
         }
 
         // Use int64 to avoid overflow: partial_sum ~ H*B, abssum*B can both exceed 2^31
-        int64_t numer = (int64_t)rhs
+        int64_t numer = (int64_t)rhs[j]
                       - stack_partial_sum[sp*N_hyps + j]
                       - (int64_t)B * (int64_t)abssum[j*(dim+1) + i];
 
@@ -199,7 +200,7 @@ int _box_enum_c(
     int dim,
     int B,
     int * restrict H,
-    int rhs,
+    int * restrict rhs,
     int N_hyps,
     long max_N_out,
     long max_N_nodes)

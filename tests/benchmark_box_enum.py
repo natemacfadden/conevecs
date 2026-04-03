@@ -18,7 +18,7 @@
 import numpy as np
 import time
 
-from conevecs import box_enum
+from latticepts import box_enum
 
 # the following imports are only needed for benchmarking
 try:
@@ -206,7 +206,7 @@ if not HAS_NORMALIZ or not HAS_CPSAT:
     missing = [name for name, flag in [("PyNormaliz", HAS_NORMALIZ), ("ortools", HAS_CPSAT)] if not flag]
     print(f"NI: {', '.join(missing)} not installed")
 
-print(f"{'B':>3}  {'N':>8}  {'cone_wid':>9}  {'expl_frac':>9}  {'effic':>9}  {'box_enum':>11}  {'normaliz':>11}  {'cpsat':>11}")
+print(f"{'B':>3}  {'N':>8}  {'fill_frac':>9}  {'expl_frac':>9}  {'effic':>9}  {'box_enum':>11}  {'normaliz':>11}  {'cpsat':>11}")
 print("-" * 85)
 
 skip_box      = None
@@ -228,13 +228,13 @@ for B in range(1, 30+1):
         elapsed = time.perf_counter() - t0
         N = out.shape[0]
         N_nodes_B = ((2*B + 1)**(dim + 1) - 1) // (2*B)
-        cone_width = N / (2*B + 1)**dim
+        fill_fraction = N / (2*B + 1)**dim
         exploration_fraction = N_nodes_seen / N_nodes_B
         N_nodes_dense = sum(N**(k/dim) for k in range(dim + 1)) if N > 0 else 0.0
         efficiency = N_nodes_dense / N_nodes_seen if N_nodes_seen > 0 else 0.0
         t_box = _fmt(elapsed)
         n_str  = f"{N:>8}"
-        cw_str = f"{cone_width:>9.2e}"
+        cw_str = f"{fill_fraction:>9.2e}"
         fd_str = f"{exploration_fraction:>9.2e}"
         ef_str = f"{efficiency:>9.2e}"
         plot_N.append(N)
@@ -279,7 +279,7 @@ for B in range(1, 30+1):
 if HAS_MPL and plot_N:
     fig, ax = plt.subplots(figsize=(7, 4))
 
-    ax.plot(plot_N, plot_t_box, 'o-', color='steelblue', label='conevecs (box_enum)')
+    ax.plot(plot_N, plot_t_box, 'o-', color='steelblue', label='latticepts (box_enum)')
     if plot_t_norm:
         ax.plot(plot_N[:len(plot_t_norm)], plot_t_norm, 's--', color='tomato',   label='PyNormaliz')
     if plot_t_cpsat:
@@ -287,7 +287,7 @@ if HAS_MPL and plot_N:
 
     ax.set_xlabel('N')
     ax.set_ylabel('time (s)')
-    ax.set_title('Lattice point enumeration: conevecs vs reference solvers\n'
+    ax.set_title('Lattice point enumeration: latticepts vs reference solvers\n'
                  'Manwe, 7d example from arXiv:2406.13751')
     ax.set_xscale('log')
     ax.set_yscale('log')

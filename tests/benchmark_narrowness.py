@@ -26,7 +26,7 @@ import time
 import matplotlib.pyplot as plt
 from fractions import Fraction
 
-from conevecs import enum_lattice_points
+from latticepts import enum_lattice_points
 
 # =============================================================================
 # Parameters

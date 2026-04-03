@@ -32,7 +32,7 @@ from . import box_enum
 
 def enum_lattice_points(
     H: ArrayLike,
-    rhs: int,
+    rhs: "int | ArrayLike",
     min_N_pts: int,
     primitive: bool = False,
     max_B: int = 10_000,
@@ -47,8 +47,10 @@ def enum_lattice_points(
     ----------
     H : array-like of shape (N_hyps, dim)
         Integer hyperplane matrix.
-    rhs : int
-        Right-hand side of the inequality H @ x >= rhs.
+    rhs : int or array-like of int, shape (N_hyps,)
+        Right-hand side of the hyperplane constraints. A scalar is broadcast
+        to all rows (uniform offset); a vector allows per-constraint bounds,
+        enabling enumeration of lattice points in general convex polyhedra.
     min_N_pts : int
         Minimum number of lattice points to return.
     primitive : bool, optional
@@ -63,7 +65,7 @@ def enum_lattice_points(
         fully dense box; r=0 imposes no limit. Defaults to 1e-6.
     verbosity : int, optional
         The verbosity level. >= 1 prints per-iteration diagnostics
-        (cone_width, exploration_fraction, efficiency). >= 2 also prints
+        (fill_fraction, exploration_fraction, efficiency). >= 2 also prints
         attempt-level progress messages. Defaults to 0 (silent).
 
     Returns
@@ -79,6 +81,14 @@ def enum_lattice_points(
 
     H = np.asarray(H, dtype=np.int32)
     dim = H.shape[1]
+    N_hyps = H.shape[0]
+
+    if np.ndim(rhs) == 0:
+        rhs = np.full(N_hyps, rhs, dtype=np.int32)
+    else:
+        rhs = np.asarray(rhs, dtype=np.int32)
+        if rhs.shape[0] != N_hyps:
+            raise ValueError(f"rhs length {rhs.shape[0]} != N_hyps {N_hyps}")
 
     # Smallest B such that an unconstrained box (N_hyps=0) could contain
     # min_N_pts points: (2B+1)^dim >= min_N_pts => B >= (min_N_pts^{1/dim}-1)/2
@@ -117,11 +127,11 @@ def enum_lattice_points(
         )
         if verbosity >= 1:
             N_nodes_B = ((2*B + 1)**(dim + 1) - 1) // (2*B)
-            cone_width = len(pts) / (2*B + 1)**dim
+            fill_fraction = len(pts) / (2*B + 1)**dim
             exploration_fraction = N_nodes_seen / N_nodes_B
             efficiency = N_nodes_dense / N_nodes_seen if N_nodes_seen > 0 else 0.0
             print(f"B={B}: N_out={len(pts)}, "
-                  f"cone_width={cone_width:.3e}, "
+                  f"fill_fraction={fill_fraction:.3e}, "
                   f"exploration_fraction={exploration_fraction:.3e}, "
                   f"efficiency={efficiency:.3e}",
                   flush=True)

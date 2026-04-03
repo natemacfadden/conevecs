@@ -19,7 +19,7 @@ import numpy as np
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
-from conevecs import enum_lattice_points
+from latticepts import enum_lattice_points
 
 # the following imports are only needed for benchmarking
 try:
@@ -155,7 +155,7 @@ def _run_with_timeout(fn, *args, **kwargs):
             return None, None, e
 
 
-def _run_conevecs(N):
+def _run_latticepts(N):
     return enum_lattice_points(H=H, rhs=rhs, min_N_pts=N)
 
 
@@ -168,31 +168,31 @@ if not HAS_CYTOOLS:
     print("NI: CYTools not installed — skipping comparison")
 
 col_w = 12
-header = f"{'N':>5}  {'conevecs':>{col_w}}  {'cytools':>{col_w}}"
+header = f"{'N':>5}  {'latticepts':>{col_w}}  {'cytools':>{col_w}}"
 print(header)
 print("-" * len(header))
 
-skip_conevecs = None
+skip_latticepts = None
 skip_cytools  = None if HAS_CYTOOLS else "NI"
 
 # store timings for optional plot
-t_conevecs = []
+t_latticepts = []
 t_cytools  = []
 
 for N in N_VALUES:
     n_str = _fmt_N(N)
 
-    if skip_conevecs is None:
-        elapsed_c, _, err_c = _run_with_timeout(_run_conevecs, N)
-        t_conevecs.append(elapsed_c)
+    if skip_latticepts is None:
+        elapsed_c, _, err_c = _run_with_timeout(_run_latticepts, N)
+        t_latticepts.append(elapsed_c)
         if err_c is not None:
-            print(f"conevecs error at N={n_str}: {err_c}")
-            skip_conevecs = "ERR"
+            print(f"latticepts error at N={n_str}: {err_c}")
+            skip_latticepts = "ERR"
         elif elapsed_c is None:
-            skip_conevecs = "TO"
+            skip_latticepts = "TO"
     else:
         elapsed_c = None
-        t_conevecs.append(None)
+        t_latticepts.append(None)
 
     if skip_cytools is None:
         elapsed_y, _, err_y = _run_with_timeout(_run_cytools, N)
@@ -206,7 +206,7 @@ for N in N_VALUES:
         elapsed_y = None
         t_cytools.append(None)
 
-    print(f"{n_str:>5}  {_fmt_t(elapsed_c, skip_conevecs or 'TO')}  {_fmt_t(elapsed_y, skip_cytools or 'TO')}")
+    print(f"{n_str:>5}  {_fmt_t(elapsed_c, skip_latticepts or 'TO')}  {_fmt_t(elapsed_y, skip_cytools or 'TO')}")
 
 # =============================================================================
 # Plot
@@ -217,11 +217,11 @@ if HAS_MPL and HAS_CYTOOLS:
 
     xs = np.array(N_VALUES)
 
-    # conevecs
-    mask_c = np.array([t is not None for t in t_conevecs])
+    # latticepts
+    mask_c = np.array([t is not None for t in t_latticepts])
     if mask_c.any():
-        ax.plot(xs[mask_c], np.array(t_conevecs)[mask_c],
-                marker='o', label='conevecs')
+        ax.plot(xs[mask_c], np.array(t_latticepts)[mask_c],
+                marker='o', label='latticepts')
 
     # cytools
     mask_y = np.array([t is not None for t in t_cytools])
@@ -237,7 +237,7 @@ if HAS_MPL and HAS_CYTOOLS:
     ax.set_yscale('log')
     ax.set_xlabel('N (lattice points requested)')
     ax.set_ylabel('time (s)')
-    ax.set_title("Manwe: conevecs vs CYTools")
+    ax.set_title("Manwe: latticepts vs CYTools")
     ax.legend()
     plt.tight_layout()
     plt.savefig('benchmark_cytools.png', dpi=150)
