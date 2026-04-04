@@ -3,7 +3,7 @@
 
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.19406651.svg)](https://doi.org/10.5281/zenodo.19406651)
 
-Efficient lattice point enumeration for convex polyhedra, via a C/Cython implementation of Kannan's algorithm. Originally built for finding lattice points in the strict interior of convex cones.
+Fast lattice point enumeration for convex polyhedra, via a C/Cython implementation of Kannan's algorithm, substantially faster than Normaliz and OR-Tools CP-SAT with better scaling. Originally built for finding lattice points in the strict interior of convex cones. As one performance example: `latticepts` generates ~107M lattice points in the strict interior of an example 7D cone in ~23s.
 
 **Convex cones:** runtime vs requested number of interior lattice points (geometry 'Manwe', h11=491, 7D, https://arxiv.org/abs/2406.13751):
 
