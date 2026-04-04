@@ -6,8 +6,6 @@
 from libc.stdint cimport int32_t
 from libc.stdlib cimport malloc, free
 import numpy as np
-import os
-import psutil
 
 # declare the external C function
 # -------------------------------
@@ -31,8 +29,7 @@ def box_enum(B: int,
                 int[:, ::1] H,
                 rhs,
                 long max_N_out,
-                long max_N_nodes = -1,
-                max_bytes: int = None) -> tuple[np.ndarray, int, int]:
+                long max_N_nodes = -1) -> tuple[np.ndarray, int, int]:
     """
     Enumerate lattice points ``vec`` obeying ``H @ vec >= rhs`` and
     ``|vec_i| <= B`` using Kannan's algorithm.
@@ -98,17 +95,6 @@ def box_enum(B: int,
         rhs_ptr = NULL
 
     # allocate output arrays
-    if max_bytes is None:
-        # Two equally-sized arrays are held in memory simultaneously (c_out and
-        # the numpy output), so cap each at half of 80% of available RAM.
-        max_bytes = int(0.5 * 0.8 * psutil.virtual_memory().available)
-    needed = max_N_out * dim * sizeof(int32_t)
-    if needed > max_bytes:
-        raise MemoryError(
-            f"Requested output buffer ({needed / 2**30:.2f} GB) exceeds "
-            f"max_bytes ({max_bytes / 2**30:.2f} GB). "
-            f"Pass a larger max_bytes or reduce max_N_out."
-        )
     cdef int32_t *c_out = <int32_t *>malloc(max_N_out * dim * sizeof(int32_t))
     if c_out == NULL:
         raise MemoryError("Failed to allocate c_out")
@@ -156,7 +142,8 @@ def box_enum(B: int,
     # unsort
     out = np.empty((N_out, dim), dtype=np.int32)
     cdef int32_t[:, ::1] out_view = out
-    cdef int i, j
+    cdef long i
+    cdef int j
 
     for i in range(N_out):
         for j in range(dim):
